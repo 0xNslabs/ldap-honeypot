@@ -1,22 +1,22 @@
 # Simple LDAP Honeypot Server
 
 ## Introduction
-The Simple LDAP Honeypot Server is a specialized tool created for cybersecurity experts and hobbyists to observe and analyze LDAP-based network interactions. Written in Python and utilizing the Twisted framework, this script simulates an LDAP server to log unauthorized access attempts and credentials, offering valuable insights into potential network vulnerabilities and intrusion attempts.
+The Simple LDAP Honeypot Server is a low-interaction honeypot designed to observe and analyze LDAP-based network interactions. Written in Python with the Twisted framework, it emulates key LDAP behaviors (Bind, Search, RootDSE, and common Extended Requests) and logs authentication attempts and raw request bytes for incident analysis and threat research.
 
 ## Features
-- **Low-Interaction Honeypot**: Effectively imitates an LDAP server, focusing on logging authentication attempts.
-- **Flexible Configuration**: Easily modify host and port settings through command-line arguments.
-- **Comprehensive Logging**: Captures detailed information about LDAP queries, including usernames and passwords.
-- **Real-Time Monitoring**: Instantly logs and reports LDAP interaction, aiding in prompt detection of suspicious activities.
-- **Educational Purpose**: Serves as an excellent resource for understanding LDAP security threats and reconnaissance tactics.
+- **Low-Interaction Honeypot**: Emulates core LDAP operations without exposing a real directory service.
+- **Improved Protocol Handling**: BER/LDAPMessage-aware parsing for Bind, Search, Unbind, and ExtendedRequest (including StartTLS OID).
+- **Configurable RootDSE Metadata**: Customize `vendorName`, `vendorVersion`, `namingContexts`, and `defaultNamingContext` via CLI arguments.
+- **Comprehensive Logging**:
+  - Logs connection metadata and extracted credentials (when present).
+  - Logs raw request bytes in hexadecimal for anomaly/zero-day detection.
+- **Safety Controls**: Idle timeout and maximum buffer size to reduce resource abuse.
 
 ## Requirements
 - Python 3.x
-- Twisted Python library
+- Twisted
 
 ## Installation
-To set up the LDAP honeypot server, follow these instructions:
-
 ```bash
 git clone https://github.com/0xNslabs/ldap-honeypot.git
 cd ldap-honeypot
@@ -24,26 +24,55 @@ pip install twisted
 ```
 
 ## Usage
-Launch the server with optional parameters for the host and port. The default settings bind the server to all interfaces (0.0.0.0) on port 389.
+Start the server with optional parameters for host and port. By default, it binds to all interfaces (`0.0.0.0`) on port `389`.
 
 ```bash
 python3 ldap.py --host 0.0.0.0 --port 389
 ```
 
+### RootDSE customization
+Many scanners and LDAP clients query **RootDSE** via a base-scope search with an empty base DN (`base=""`, `scope=0`). This honeypot can emulate common directory metadata, and you can override key fields using CLI arguments.
+
+#### Set vendor name/version
+```bash
+python3 ldap.py --host 0.0.0.0 --port 389 \
+  --vendor-name "Microsoft Corporation" \
+  --vendor-version "Windows Server"
+```
+
+#### Set naming contexts (repeatable)
+```bash
+python3 ldap.py --host 0.0.0.0 --port 389 \
+  --naming-context "DC=corp,DC=local" \
+  --naming-context "CN=Configuration,DC=corp,DC=local" \
+  --naming-context "CN=Schema,CN=Configuration,DC=corp,DC=local"
+```
+
+#### Set default naming context
+If omitted, `defaultNamingContext` defaults to the first `--naming-context`.
+
+```bash
+python3 ldap.py --host 0.0.0.0 --port 389 \
+  --naming-context "DC=corp,DC=local" \
+  --default-naming-context "DC=corp,DC=local"
+```
+
 ## Logging
-The LDAP honeypot logs all captured interactions in ldap_honeypot.log, providing a record of authentication attempts and LDAP queries for further analysis.
+All LDAP interactions are logged to `ldap_honeypot.log`.
+
+In addition to normal event lines, the server logs:
+- `RAW BYTES HEX:` for each received TCP chunk
+- `RAW LDAPMessage HEX:` for each fully parsed LDAPMessage
+
+These raw-hex logs are useful for detecting malformed BER, fuzzing activity, and potential zero-day probing.
 
 ## Simple LDAP Honeypot In Action
 ![Simple LDAP Honeypot in Action](https://raw.githubusercontent.com/0xNslabs/ldap-honeypot/main/PoC.png)
 *The above image showcases the Simple LDAP Honeypot Server in action, capturing real-time LDAP queries and credentials.*
 
 ## Other Simple Honeypot Services
-
-Check out the other honeypot services for monitoring various network protocols:
-
 - [DNS Honeypot](https://github.com/0xNslabs/dns-honeypot) - Monitors DNS interactions.
 - [FTP Honeypot](https://github.com/0xNslabs/ftp-honeypot) - Simulates an FTP server.
-- [LDAP Honeypot](https://github.com/0xNslabs/ldap-honeypot) - Mimics an LDAP server.
 - [HTTP Honeypot](https://github.com/0xNslabs/http-honeypot) - Monitors HTTP interactions.
 - [HTTPS Honeypot](https://github.com/0xNslabs/https-honeypot) - Monitors HTTPS interactions.
 - [MongoDB Honeypot](https://github.com/0xNslabs/mongodb-honeypot) - Simulates a MongoDB database server.
@@ -54,7 +83,7 @@ Check out the other honeypot services for monitoring various network protocols:
 - [TELNET Honeypot](https://github.com/0xNslabs/telnet-honeypot) - Simulates a TELNET server.
 
 ## Security and Compliance
-- **Caution**:  Use this honeypot in secure, controlled environments for research and educational purposes.
+- **Caution**: Use this honeypot in secure, controlled environments for research and educational purposes.
 - **Compliance**: Ensure deployment is in line with local and international legal requirements.
 
 ## License
